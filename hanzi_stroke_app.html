@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>汉字笔顺展示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "SimHei", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .input-section {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .input-group input {
+            flex: 1;
+            min-width: 200px;
+            max-width: 400px;
+            padding: 18px 25px;
+            font-size: 1.5em;
+            border: 3px solid #667eea;
+            border-radius: 12px;
+            text-align: center;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #764ba2;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
+        }
+
+        .btn {
+            padding: 18px 40px;
+            font-size: 1.2em;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .alert {
+            padding: 18px 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: none;
+            font-size: 1.1em;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+
+        .char-info {
+            background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border-left: 6px solid #ffc107;
+            display: none;
+        }
+
+        .char-info h2 {
+            color: #856404;
+            margin-bottom: 15px;
+            font-size: 2.5em;
+        }
+
+        .strokes-section {
+            display: none;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 1.8em;
+            color: #667eea;
+            margin-bottom: 25px;
+            font-weight: bold;
+        }
+
+        .strokes-grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stroke-item {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .stroke-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+            border-color: #667eea;
+        }
+
+        .stroke-item.active {
+            background: linear-gradient(135deg, #fff9e6 0%, #ffe9a6 100%);
+            border-color: #ffc107;
+            box-shadow: 0 8px 25px rgba(255, 193, 7, 0.5);
+            transform: translateY(-5px) scale(1.05);
+        }
+
+        .stroke-number {
+            text-align: center;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1em;
+        }
+
+        .stroke-item.active .stroke-number {
+            color: #ff6b6b;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .tian-grid {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1;
+            background: #fafafa;
+            border: 3px solid #333;
+            margin: 0 auto;
+            border-radius: 4px;
+        }
+
+        .grid-line {
+            position: absolute;
+            background: #ccc;
+        }
+
+        .grid-line.horizontal {
+            width: 100%;
+            height: 1px;
+            top: 50%;
+            left: 0;
+        }
+
+        .grid-line.vertical {
+            width: 1px;
+            height: 100%;
+            left: 50%;
+            top: 0;
+        }
+
+        .grid-line.diagonal1 {
+            width: 141.42%;
+            height: 1px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(45deg);
+            opacity: 0.4;
+        }
+
+        .grid-line.diagonal2 {
+            width: 141.42%;
+            height: 1px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            opacity: 0.4;
+        }
+
+        .stroke-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .stroke-static {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .stroke-canvas {
+            z-index: 2;
+        }
+
+        .controls {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .controls h3 {
+            margin-bottom: 25px;
+            color: #333;
+            text-align: center;
+            font-size: 1.5em;
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 25px;
+        }
+
+        .control-buttons button {
+            padding: 14px 28px;
+            font-size: 1em;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3);
+        }
+
+        .control-buttons button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .speed-control {
+            margin-top: 25px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .speed-control label {
+            display: block;
+            margin-bottom: 12px;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+        }
+
+        .speed-control input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #ddd;
+            outline: none;
+        }
+
+        .speed-value {
+            text-align: center;
+            margin-top: 12px;
+            color: #667eea;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .stroke-info {
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stroke-info p {
+            margin: 8px 0;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        @media (max-width: 768px) {
+            .strokes-grid-container {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🖌️ 汉字笔顺展示</h1>
+            <p>学习汉字，从每一笔开始</p>
+        </header>
+
+        <div class="main-content">
+            <div id="alertBox" class="alert"></div>
+            
+            <div class="input-section">
+                <div class="input-group">
+                    <input type="text" id="charInput" placeholder="请输入一个汉字" maxlength="1" autofocus>
+                    <button class="btn btn-primary" onclick="displayChar()">📝 显示笔顺</button>
+                    <button class="btn btn-secondary" onclick="resetApp()">🔄 重置</button>
+                </div>
+            </div>
+
+            <div class="char-info" id="charInfo">
+                <h2 id="charTitle"></h2>
+                <p>笔画数：<span id="charStrokes">0</span> 笔</p>
+            </div>
+
+            <div class="strokes-section" id="strokesSection">
+                <h3 class="section-title">✍️ 笔顺演示</h3>
+                <div id="strokesGridContainer" class="strokes-grid-container"></div>
+
+                <div class="controls">
+                    <h3>🎮 播放控制</h3>
+                    <div class="control-buttons">
+                        <button onclick="playStrokes()">▶️ 播放</button>
+                        <button onclick="pauseStrokes()">⏸️ 暂停</button>
+                        <button onclick="replayStrokes()">🔄 重播</button>
+                        <button onclick="prevStroke()">⏮️ 上一笔</button>
+                        <button onclick="nextStroke()">⏭️ 下一笔</button>
+                    </div>
+
+                    <div class="speed-control">
+                        <label>⚡ 播放速度</label>
+                        <input type="range" id="speedSlider" min="0.5" max="3" step="0.5" value="1" oninput="updateSpeed()">
+                        <div class="speed-value" id="speedValue">1.0x</div>
+                    </div>
+
+                    <div class="stroke-info">
+                        <p><strong>当前笔画：</strong><span id="currentStroke">0</span> / <span id="totalStrokes">0</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0.0/all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5.0/dist/hanzi-writer.min.js"></script>
+    <script>
+        let writers = [];
+        let currentChar = null;
+        let currentCharData = null;
+        let strokeCount = 0;
+        let currentStrokeIndex = 0;
+        let isPlaying = false;
+        let playSpeed = 1;
+        let staticSvgs = [];
+        const COLORS = {
+            writing: '#000000',
+            staticStroke: '#000000',
+            backgroundStroke: '#000000',
+            backgroundOpacity: 0.08
+        };
+
+        function validateChar(char) {
+            return /^[\u4e00-\u9fa5]$/.test(char);
+        }
+
+        function showAlert(message, type = 'error') {
+            const alertBox = document.getElementById('alertBox');
+            alertBox.className = `alert alert-${type}`;
+            alertBox.textContent = message;
+            alertBox.style.display = 'block';
+            setTimeout(() => {
+                alertBox.style.display = 'none';
+            }, 3000);
+        }
+
+        async function displayChar() {
+            const input = document.getElementById('charInput').value.trim();
+            
+            if (!input) {
+                showAlert('请输入一个汉字');
+                return;
+            }
+
+            if (!validateChar(input)) {
+                showAlert('请输入一个有效的中文汉字');
+                return;
+            }
+
+            currentChar = input;
+            writers = [];
+            staticSvgs = [];
+            
+            try {
+                currentCharData = await HanziWriter.loadCharacterData(input);
+                strokeCount = currentCharData.strokes.length;
+
+                // 显示信息
+                document.getElementById('charTitle').textContent = input;
+                document.getElementById('charStrokes').textContent = strokeCount;
+                document.getElementById('charInfo').style.display = 'block';
+
+                // 创建田字格
+                createStrokeGrids(strokeCount, input);
+
+                // 显示笔顺区域
+                document.getElementById('strokesSection').style.display = 'block';
+
+                // 更新控制信息
+                document.getElementById('totalStrokes').textContent = strokeCount;
+                document.getElementById('currentStroke').textContent = '0';
+                currentStrokeIndex = 0;
+
+                showAlert('加载成功！点击播放查看笔顺', 'success');
+            } catch (error) {
+                console.error('加载失败:', error);
+                showAlert('该汉字数据暂不可用，请尝试其他汉字');
+            }
+        }
+
+        function initWriter(index, type = 'light') {
+            const writerDiv = document.getElementById(`writer-${index}`);
+            if (!writerDiv) return null;
+            
+            writerDiv.innerHTML = '';
+            
+            const size = writerDiv.offsetWidth;
+            const options = {
+                width: size,
+                height: size,
+                padding: 5,
+                showOutline: false,
+                showCharacter: false,
+                strokeAnimationSpeed: playSpeed,
+                delayBetweenStrokes: 0
+            };
+            
+            if (type === 'light') {
+                options.strokeColor = COLORS.writing;
+                options.drawingColor = COLORS.writing;
+            } else {
+                options.strokeColor = COLORS.writing;
+                options.drawingColor = COLORS.writing;
+            }
+            
+            const writer = HanziWriter.create(writerDiv, currentChar, options);
+            writers[index] = writer;
+            return writer;
+        }
+
+        function renderStaticStrokes(svgEl, uptoInclusive) {
+            if (!svgEl) return;
+            
+            svgEl.innerHTML = '';
+            if (!currentCharData) return;
+            
+            const size = svgEl.parentElement ? svgEl.parentElement.offsetWidth : svgEl.clientWidth;
+            const svgNS = 'http://www.w3.org/2000/svg';
+            svgEl.style.width = '100%';
+            svgEl.style.height = '100%';
+            svgEl.setAttribute('width', size);
+            svgEl.setAttribute('height', size);
+            
+            const group = document.createElementNS(svgNS, 'g');
+            const transformData = HanziWriter.getScalingTransform(size, size);
+            group.setAttributeNS(null, 'transform', transformData.transform);
+            svgEl.appendChild(group);
+
+            for (let i = 0; i < currentCharData.strokes.length; i++) {
+                const bgPath = document.createElementNS(svgNS, 'path');
+                bgPath.setAttributeNS(null, 'd', currentCharData.strokes[i]);
+                bgPath.style.fill = COLORS.backgroundStroke;
+                bgPath.style.opacity = String(COLORS.backgroundOpacity);
+                bgPath.style.stroke = 'none';
+                group.appendChild(bgPath);
+            }
+            
+            if (uptoInclusive >= 0) {
+                const maxIndex = Math.min(uptoInclusive, currentCharData.strokes.length - 1);
+                for (let i = 0; i <= maxIndex; i++) {
+                    const path = document.createElementNS(svgNS, 'path');
+                    path.setAttributeNS(null, 'd', currentCharData.strokes[i]);
+                    path.style.fill = COLORS.staticStroke;
+                    path.style.opacity = '1';
+                    path.style.stroke = 'none';
+                    group.appendChild(path);
+                }
+            }
+        }
+
+        function syncStaticLayers() {
+            for (let i = 0; i < strokeCount; i++) {
+                const svg = staticSvgs[i];
+                if (!svg) continue;
+                
+                if (i < currentStrokeIndex) {
+                    renderStaticStrokes(svg, i);
+                } else if (i === currentStrokeIndex) {
+                    renderStaticStrokes(svg, i - 1);
+                } else {
+                    renderStaticStrokes(svg, -1);
+                }
+                
+                const writer = writers[i];
+                if (writer && typeof writer.hideCharacter === 'function') {
+                    writer.hideCharacter();
+                }
+            }
+        }
+
+        function createStrokeGrids(count, char) {
+            const container = document.getElementById('strokesGridContainer');
+            container.innerHTML = '';
+            writers = new Array(count);
+            staticSvgs = new Array(count);
+
+            for (let i = 0; i < count; i++) {
+                const strokeItem = document.createElement('div');
+                strokeItem.className = 'stroke-item';
+                strokeItem.id = `stroke-item-${i}`;
+
+                const strokeNumber = document.createElement('div');
+                strokeNumber.className = 'stroke-number';
+                strokeNumber.textContent = `第 ${i + 1} 笔`;
+
+                const tianGrid = document.createElement('div');
+                tianGrid.className = 'tian-grid';
+
+                ['horizontal', 'vertical', 'diagonal1', 'diagonal2'].forEach(lineClass => {
+                    const line = document.createElement('div');
+                    line.className = `grid-line ${lineClass}`;
+                    tianGrid.appendChild(line);
+                });
+
+                const staticSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                staticSvg.classList.add('stroke-static');
+                staticSvg.id = `static-${i}`;
+                tianGrid.appendChild(staticSvg);
+                staticSvgs[i] = staticSvg;
+
+                const writerDiv = document.createElement('div');
+                writerDiv.className = 'stroke-canvas';
+                writerDiv.id = `writer-${i}`;
+                tianGrid.appendChild(writerDiv);
+
+                strokeItem.appendChild(strokeNumber);
+                strokeItem.appendChild(tianGrid);
+                container.appendChild(strokeItem);
+
+                // 创建 HanziWriter 实例
+                setTimeout(() => {
+                    initWriter(i, 'light');
+                    renderStaticStrokes(staticSvgs[i], -1);
+                }, 100);
+            }
+        }
+
+        function playStrokes() {
+            if (!currentChar || isPlaying) return;
+            isPlaying = true;
+            syncStaticLayers();
+            animateNextStroke();
+        }
+
+        function animateNextStroke() {
+            if (currentStrokeIndex >= strokeCount) {
+                isPlaying = false;
+                return;
+            }
+
+            highlightStroke(currentStrokeIndex);
+            
+            // 按照笔画顺序：每次只书写一笔，不一次描完整字
+            const strokeIndex = currentStrokeIndex;
+            renderStaticStrokes(staticSvgs[strokeIndex], strokeIndex - 1);
+            const writer = initWriter(strokeIndex, 'dark');
+            if (!writer) {
+                isPlaying = false;
+                return;
+            }
+
+            const onComplete = () => {
+                if (typeof writer.hideCharacter === 'function') {
+                    writer.hideCharacter();
+                }
+                renderStaticStrokes(staticSvgs[strokeIndex], strokeIndex);
+                currentStrokeIndex++;
+                document.getElementById('currentStroke').textContent = currentStrokeIndex;
+                
+                if (isPlaying && currentStrokeIndex < strokeCount) {
+                    setTimeout(() => animateNextStroke(), 500 / playSpeed);
+                } else {
+                    isPlaying = false;
+                }
+            };
+
+            if (typeof writer.animateStroke === 'function') {
+                writer.animateStroke(strokeIndex, { onComplete });
+            } else {
+                writer.animateCharacter({ onComplete });
+            }
+        }
+
+        function highlightStroke(index) {
+            document.querySelectorAll('.stroke-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            const item = document.getElementById(`stroke-item-${index}`);
+            if (item) {
+                item.classList.add('active');
+                item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        function pauseStrokes() {
+            isPlaying = false;
+            writers.forEach(writer => {
+                if (!writer) return;
+                if (typeof writer.cancelAnimation === 'function') writer.cancelAnimation();
+                if (typeof writer.cancelQuiz === 'function') writer.cancelQuiz();
+            });
+        }
+
+        function replayStrokes() {
+            pauseStrokes();
+            currentStrokeIndex = 0;
+            
+            // 重置所有笔画为浅色
+            createStrokeGrids(strokeCount, currentChar);
+            
+            document.querySelectorAll('.stroke-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            document.getElementById('currentStroke').textContent = '0';
+            
+            setTimeout(() => playStrokes(), 300);
+        }
+
+        function prevStroke() {
+            if (currentStrokeIndex > 0) {
+                pauseStrokes();
+                currentStrokeIndex--;
+                syncStaticLayers();
+                
+                highlightStroke(currentStrokeIndex);
+                document.getElementById('currentStroke').textContent = currentStrokeIndex;
+            }
+        }
+
+        function nextStroke() {
+            if (currentStrokeIndex < strokeCount) {
+                pauseStrokes();
+                const justCompletedIndex = currentStrokeIndex;
+                currentStrokeIndex++;
+                syncStaticLayers();
+                highlightStroke(justCompletedIndex);
+                document.getElementById('currentStroke').textContent = currentStrokeIndex;
+            }
+        }
+
+        function updateSpeed() {
+            playSpeed = parseFloat(document.getElementById('speedSlider').value);
+            document.getElementById('speedValue').textContent = playSpeed.toFixed(1) + 'x';
+        }
+
+        function resetApp() {
+            pauseStrokes();
+            currentChar = null;
+            strokeCount = 0;
+            currentStrokeIndex = 0;
+            writers = [];
+            
+            document.getElementById('charInput').value = '';
+            document.getElementById('charInfo').style.display = 'none';
+            document.getElementById('strokesSection').style.display = 'none';
+            document.getElementById('strokesGridContainer').innerHTML = '';
+        }
+
+        document.getElementById('charInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') displayChar();
+        });
+
+        window.addEventListener('resize', () => {
+            if (writers.length > 0) {
+                const char = currentChar;
+                const index = currentStrokeIndex;
+                setTimeout(() => {
+                    createStrokeGrids(strokeCount, char);
+                    currentStrokeIndex = index;
+                    setTimeout(() => syncStaticLayers(), 150);
+                }, 100);
+            }
+        });
+    </script>
+</body>
+</html>
