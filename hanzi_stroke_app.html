@@ -479,6 +479,7 @@
     <script src="./ai_words_config.js"></script>
     <script>
         let writers = [];
+        let fullWriter = null;
         let currentChar = null;
         let currentCharData = null;
         let strokeCount = 0;
@@ -908,6 +909,56 @@
                     renderStaticStrokes(staticSvgs[i], -1);
                 }, 100);
             }
+
+            // 添加完整演示田字格
+            const fullStrokeItem = document.createElement('div');
+            fullStrokeItem.className = 'stroke-item';
+            fullStrokeItem.id = 'stroke-item-full'; // 给完整演示添加 ID
+            fullStrokeItem.style.cursor = 'pointer';
+            fullStrokeItem.title = '点击播放完整动画';
+            
+            const fullStrokeNumber = document.createElement('div');
+            fullStrokeNumber.className = 'stroke-number';
+            fullStrokeNumber.textContent = '完整演示';
+            fullStrokeNumber.style.color = '#ff6b6b';
+
+            const fullTianGrid = document.createElement('div');
+            fullTianGrid.className = 'tian-grid';
+
+            ['horizontal', 'vertical', 'diagonal1', 'diagonal2'].forEach(lineClass => {
+                const line = document.createElement('div');
+                line.className = `grid-line ${lineClass}`;
+                fullTianGrid.appendChild(line);
+            });
+
+            const fullWriterDiv = document.createElement('div');
+            fullWriterDiv.className = 'stroke-canvas';
+            fullWriterDiv.id = 'writer-full';
+            fullTianGrid.appendChild(fullWriterDiv);
+
+            fullStrokeItem.appendChild(fullStrokeNumber);
+            fullStrokeItem.appendChild(fullTianGrid);
+            container.appendChild(fullStrokeItem);
+
+            setTimeout(() => {
+                const size = fullWriterDiv.offsetWidth;
+                const options = {
+                    width: size,
+                    height: size,
+                    padding: 5,
+                    showOutline: true,
+                    strokeAnimationSpeed: playSpeed,
+                    delayBetweenStrokes: 150,
+                    strokeColor: COLORS.writing,
+                };
+                
+                fullWriter = HanziWriter.create(fullWriterDiv, char, options);
+                
+                // 点击播放动画
+                fullStrokeItem.addEventListener('click', () => {
+                    fullWriter.animateCharacter();
+                });
+            }, 100);
         }
 
         function playStrokes() {
@@ -917,9 +968,23 @@
             animateNextStroke();
         }
 
+        function playFullDemo() {
+            if (!fullWriter) {
+                isPlaying = false;
+                return;
+            }
+            highlightStroke('full');
+            fullWriter.animateCharacter({
+                onComplete: () => {
+                    isPlaying = false;
+                }
+            });
+        }
+
         function animateNextStroke() {
             if (currentStrokeIndex >= strokeCount) {
-                isPlaying = false;
+                // 如果所有笔画都已完成，播放完整演示
+                playFullDemo();
                 return;
             }
 
@@ -942,10 +1007,12 @@
                 currentStrokeIndex++;
                 document.getElementById('currentStroke').textContent = currentStrokeIndex;
                 
-                if (isPlaying && currentStrokeIndex < strokeCount) {
-                    setTimeout(() => animateNextStroke(), 500 / playSpeed);
-                } else {
-                    isPlaying = false;
+                if (isPlaying) {
+                    if (currentStrokeIndex <= strokeCount) {
+                        setTimeout(() => animateNextStroke(), 500 / playSpeed);
+                    } else {
+                        isPlaying = false;
+                    }
                 }
             };
 
