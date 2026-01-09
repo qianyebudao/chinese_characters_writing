@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>汉字笔顺展示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { corePlugins: { preflight: false } };
+    </script>
     <style>
         * {
             margin: 0;
@@ -389,6 +393,15 @@
             <div class="char-info" id="charInfo">
                 <h2 id="charTitle"></h2>
                 <p>笔画数：<span id="charStrokes">0</span> 笔</p>
+                <div class="mt-4 border-t border-slate-200 pt-4">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="text-sm font-semibold text-slate-700">AI 组词（3个）</div>
+                        <button id="genWordsBtn" class="px-3 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed">生成</button>
+                        <!-- <button id="aiConfigBtn" class="px-3 py-1.5 text-sm rounded-md bg-slate-200 text-slate-800 hover:bg-slate-300">配置文件</button> -->
+                    </div>
+                    <div id="wordsStatus" class="mt-2 text-sm text-slate-600"></div>
+                    <div id="wordsList" class="mt-2 flex flex-wrap gap-2"></div>
+                </div>
             </div>
 
             <div class="strokes-section" id="strokesSection">
@@ -419,8 +432,13 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0.0/all.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5.0/dist/hanzi-writer.min.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0.0/all.min.js"
+        onerror="this.onerror=null;this.src='https://unpkg.com/hanzi-writer-data@2.0.0/all.min.js'"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5.0/dist/hanzi-writer.min.js"
+        onerror="this.onerror=null;this.src='https://unpkg.com/hanzi-writer@3.5.0/dist/hanzi-writer.min.js'"></script>
+    <script src="./ai_words_config.js"></script>
     <script>
         let writers = [];
         let currentChar = null;
@@ -449,6 +467,196 @@
             setTimeout(() => {
                 alertBox.style.display = 'none';
             }, 3000);
+        }
+
+        function loadAiWordsConfig() {
+            const cfg = (window.AI_WORDS_CONFIG && typeof window.AI_WORDS_CONFIG === 'object')
+                ? window.AI_WORDS_CONFIG
+                : {};
+            return {
+                baseUrl: typeof cfg.baseUrl === 'string' && cfg.baseUrl ? cfg.baseUrl : 'https://api.deepseek.com',
+                model: typeof cfg.model === 'string' && cfg.model ? cfg.model : 'deepseek-chat',
+                apiKey: typeof cfg.apiKey === 'string' ? cfg.apiKey : ''
+            };
+        }
+
+        function setWordsStatus(text, variant = 'info') {
+            const el = document.getElementById('wordsStatus');
+            if (!el) return;
+            el.textContent = text || '';
+            const base = 'mt-2 text-sm ';
+            if (variant === 'error') el.className = base + 'text-rose-600';
+            else if (variant === 'success') el.className = base + 'text-emerald-700';
+            else if (variant === 'warning') el.className = base + 'text-amber-700';
+            else el.className = base + 'text-slate-600';
+        }
+
+        function renderWords(words) {
+            const list = document.getElementById('wordsList');
+            if (!list) return;
+            list.innerHTML = '';
+            if (!Array.isArray(words) || words.length === 0) return;
+            words.forEach(word => {
+                const chip = document.createElement('span');
+                chip.className = 'px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-sm font-medium';
+                chip.textContent = word;
+                list.appendChild(chip);
+            });
+        }
+
+        function setWordsLoading(isLoading) {
+            const btn = document.getElementById('genWordsBtn');
+            if (!btn) return;
+            btn.disabled = !!isLoading;
+            btn.textContent = isLoading ? '生成中…' : '生成';
+        }
+
+        function parseWordsFromModelText(text) {
+            const raw = String(text || '').trim();
+            if (!raw) return [];
+
+            try {
+                const direct = JSON.parse(raw);
+                if (Array.isArray(direct)) return direct.map(s => String(s).trim()).filter(Boolean);
+            } catch {}
+
+            const bracket = raw.match(/\[[\s\S]*\]/);
+            if (bracket) {
+                try {
+                    const extracted = JSON.parse(bracket[0]);
+                    if (Array.isArray(extracted)) return extracted.map(s => String(s).trim()).filter(Boolean);
+                } catch {}
+            }
+
+            return raw
+                .replace(/^\s*[\-\*\d\.\)]+/g, '')
+                .split(/[，,\n]/)
+                .map(s => s.trim())
+                .filter(Boolean);
+        }
+
+        async function generateWordsByAI(char) {
+            const config = loadAiWordsConfig();
+            if (!config.apiKey) {
+                throw new Error('未配置 AI Key');
+            }
+
+            const baseUrl = String(config.baseUrl || '').replace(/\/+$/, '');
+            const url = `${baseUrl}`;
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 30000);
+
+            try {
+                const prompt = `你是严谨的语文老师，只按要求输出。请根据汉字“${char}”生成3个常用且适合小学生的词语，要求每个词语都包含这个汉字。只返回组词,不要返回其它文字。`;
+                const headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${config.apiKey}`
+                };
+                if (baseUrl.includes('openrouter.ai')) {
+                    headers['HTTP-Referer'] = window.location.href;
+                    headers['X-Title'] = 'hanzi_stroke_app';
+                }
+                let res;
+                try {
+                    res = await fetch(url, {
+                        method: "POST",
+                        headers,
+                        body: JSON.stringify({
+                            "model": config.model,
+                            "messages": [
+                                { "role": 'user', "content": prompt }
+                            ]
+                        }),
+                        "reasoning": {
+                            "enabled": true
+                        } 
+                    });
+                } catch (e) {
+                    const name = e && typeof e === 'object' && 'name' in e ? String(e.name) : '';
+                    const message = e instanceof Error ? e.message : String(e);
+                    if (name === 'AbortError' || message.includes('aborted')) {
+                        throw new Error('请求超时（30秒），请重试或检查网络');
+                    }
+                    throw e;
+                }
+
+                if (!res.ok) {
+                    const errText = await res.text().catch(() => '');
+                    if (baseUrl.includes('openrouter.ai') && errText.includes('No endpoints found matching your data policy')) {
+                        throw new Error('OpenRouter 隐私策略限制了当前免费模型，请到 https://openrouter.ai/settings/privacy 调整数据策略，或改用非 :free 模型');
+                    }
+                    if (errText.includes("'max_tokens' or 'max_completion_tokens' is too large")) {
+                        throw new Error('模型返回 max_tokens 过大错误，已在代码中限制 max_tokens=128；请刷新页面后重试');
+                    }
+                    throw new Error(`请求失败（${res.status}）${errText ? '：' + errText : ''}`);
+                }
+
+                const data = await res.json();
+                console.log("data==>", JSON.stringify(data, null, 2));
+                const content = data?.choices?.[0]?.message?.content ?? '';
+                console.log("content==>"+content);
+                const words = parseWordsFromModelText(content);
+                return words;
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+
+        async function generateWordsForChar(char) {
+            const wordsList = document.getElementById('wordsList');
+            if (!wordsList) return;
+
+            if (!char || !validateChar(char)) {
+                setWordsStatus('请输入有效汉字后再组词', 'warning');
+                renderWords([]);
+                return;
+            }
+
+            const config = loadAiWordsConfig();
+            if (!config.apiKey) {
+                setWordsStatus('未配置 AI Key，请在 ai_words_config.js 中配置', 'warning');
+                renderWords([]);
+                return;
+            }
+
+            setWordsLoading(true);
+            setWordsStatus('正在生成词语…', 'info');
+            renderWords([]);
+
+            try {
+                const rawWords = await generateWordsByAI(char);
+                console.log("rawWords==>"+rawWords);
+                const cleaned = rawWords
+                    .map(w => String(w).replace(/["“”]/g, '').trim())
+                    .filter(Boolean);
+
+                const unique = Array.from(new Set(cleaned));
+                const withCharFirst = unique.sort((a, b) => {
+                    const ai = a.includes(char) ? 0 : 1;
+                    const bi = b.includes(char) ? 0 : 1;
+                    return ai - bi;
+                });
+
+                const finalWords = withCharFirst.slice(0, 3);
+                if (finalWords.length < 3) {
+                    setWordsStatus('生成结果不足3个，请点击“生成”重试', 'warning');
+                } else {
+                    setWordsStatus('已生成 3 个词语', 'success');
+                }
+                renderWords(finalWords);
+            } catch (e) {
+                const msg = e instanceof Error ? e.message : String(e);
+                if (msg.includes('未配置 AI Key')) {
+                    setWordsStatus('未配置 AI Key，请在 ai_words_config.js 中配置', 'warning');
+                } else if (msg.includes('请求超时')) {
+                    setWordsStatus(msg, 'warning');
+                } else {
+                    setWordsStatus(`AI 组词失败：${msg}`, 'error');
+                }
+                renderWords([]);
+            } finally {
+                setWordsLoading(false);
+            }
         }
 
         async function displayChar() {
@@ -488,6 +696,7 @@
                 document.getElementById('currentStroke').textContent = '0';
                 currentStrokeIndex = 0;
 
+                generateWordsForChar(input);
                 showAlert('加载成功！点击播放查看笔顺', 'success');
             } catch (error) {
                 console.error('加载失败:', error);
@@ -752,10 +961,17 @@
             document.getElementById('charInfo').style.display = 'none';
             document.getElementById('strokesSection').style.display = 'none';
             document.getElementById('strokesGridContainer').innerHTML = '';
+            setWordsStatus('');
+            renderWords([]);
+            setWordsLoading(false);
         }
 
         document.getElementById('charInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') displayChar();
+        });
+
+        document.getElementById('genWordsBtn').addEventListener('click', function() {
+            generateWordsForChar(currentChar || document.getElementById('charInput').value.trim());
         });
 
         window.addEventListener('resize', () => {
