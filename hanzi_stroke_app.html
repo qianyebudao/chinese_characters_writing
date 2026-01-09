@@ -153,6 +153,28 @@
             font-size: 2.5em;
         }
 
+        .char-preview-wrap {
+            width: min(260px, 60vw);
+        }
+
+        .char-preview-grid {
+            background: #fffdf2;
+            border-color: #856404;
+        }
+
+        .char-preview-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: clamp(84px, 12vw, 160px);
+            line-height: 1;
+            font-weight: 800;
+            color: #856404;
+            z-index: 3;
+            user-select: none;
+        }
+
         .strokes-section {
             display: none;
         }
@@ -392,16 +414,28 @@
 
             <div class="char-info" id="charInfo">
                 <div id="pinyinText" class="text-sm font-semibold text-slate-600"></div>
-                <h2 id="charTitle"></h2>
-                <p>笔画数：<span id="charStrokes">0</span> 笔</p>
-                <div class="mt-4 border-t border-slate-200 pt-4">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <div class="text-sm font-semibold text-slate-700">AI 组词（3个）</div>
-                        <button id="genWordsBtn" class="px-3 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed">生成</button>
-                        <!-- <button id="aiConfigBtn" class="px-3 py-1.5 text-sm rounded-md bg-slate-200 text-slate-800 hover:bg-slate-300">配置文件</button> -->
+                <div class="mt-2 flex flex-wrap items-start gap-6">
+                    <div class="char-preview-wrap">
+                        <div class="tian-grid char-preview-grid">
+                            <div class="grid-line horizontal"></div>
+                            <div class="grid-line vertical"></div>
+                            <div class="grid-line diagonal1"></div>
+                            <div class="grid-line diagonal2"></div>
+                            <div id="charTitle" class="char-preview-text"></div>
+                        </div>
                     </div>
-                    <div id="wordsStatus" class="mt-2 text-sm text-slate-600"></div>
-                    <div id="wordsList" class="mt-2 flex flex-wrap gap-2"></div>
+                    <div class="flex-1 min-w-[200px]">
+                        <p>笔画数：<span id="charStrokes">0</span> 笔</p>
+                        <div class="mt-4 border-t border-slate-200 pt-4">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <div class="text-sm font-semibold text-slate-700">AI 组词（3个）</div>
+                                <button id="genWordsBtn" class="px-3 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed">生成</button>
+                                <!-- <button id="aiConfigBtn" class="px-3 py-1.5 text-sm rounded-md bg-slate-200 text-slate-800 hover:bg-slate-300">配置文件</button> -->
+                            </div>
+                            <div id="wordsStatus" class="mt-2 text-sm text-slate-600"></div>
+                            <div id="wordsList" class="mt-2 flex flex-wrap gap-2"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -575,7 +609,7 @@
             const timer = setTimeout(() => controller.abort(), 30000);
 
             try {
-                const prompt = `请根据汉字“${char}”生成3个常用且适合小学生的词语，要求每个词语都包含这个汉字。只返回JSON数组，例如：["水杯","水平","水面"]，不要返回其它文字。`;
+                const prompt = `请根据汉字“${char}”生成3个常用且适合小学生的词语，要求每个词语都包含这个汉字，并在词语上方添加上拼音音调。只返回JSON数组，例如：["水杯","水平","水面"]，不要返回其它文字。`;
                 const headers = {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${config.apiKey}`
