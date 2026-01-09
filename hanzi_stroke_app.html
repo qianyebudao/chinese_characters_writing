@@ -474,9 +474,11 @@
                 ? window.AI_WORDS_CONFIG
                 : {};
             return {
-                baseUrl: typeof cfg.baseUrl === 'string' && cfg.baseUrl ? cfg.baseUrl : 'https://api.deepseek.com',
-                model: typeof cfg.model === 'string' && cfg.model ? cfg.model : 'deepseek-chat',
-                apiKey: typeof cfg.apiKey === 'string' ? cfg.apiKey : ''
+                baseUrl: typeof cfg.baseUrl === 'string' && cfg.baseUrl ? cfg.baseUrl : 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+                model: typeof cfg.model === 'string' && cfg.model ? cfg.model : 'qwen3-vl-flash',
+                apiKey: typeof cfg.apiKey === 'string' ? cfg.apiKey : '',
+                enable_thinking: typeof cfg.enable_thinking === 'boolean' ? cfg.enable_thinking : true,
+                thinking_budget: typeof cfg.thinking_budget === 'number' && Number.isFinite(cfg.thinking_budget) ? cfg.thinking_budget : 2048
             };
         }
 
@@ -547,29 +549,37 @@
             const timer = setTimeout(() => controller.abort(), 30000);
 
             try {
-                const prompt = `你是严谨的语文老师，只按要求输出。请根据汉字“${char}”生成3个常用且适合小学生的词语，要求每个词语都包含这个汉字。只返回组词,不要返回其它文字。`;
+                const prompt = `请根据汉字“${char}”生成3个常用且适合小学生的词语，要求每个词语都包含这个汉字。只返回JSON数组，例如：["水杯","水平","水面"]，不要返回其它文字。`;
                 const headers = {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${config.apiKey}`
                 };
-                if (baseUrl.includes('openrouter.ai')) {
+                const isOpenRouter = baseUrl.includes('openrouter.ai');
+                const isDashScope = baseUrl.includes('dashscope.aliyuncs.com');
+                if (isOpenRouter) {
                     headers['HTTP-Referer'] = window.location.href;
                     headers['X-Title'] = 'hanzi_stroke_app';
                 }
                 let res;
                 try {
+                    const body = {
+                        model: config.model,
+                        temperature: 0.7,
+                        max_tokens: 128,
+                        stream: false,
+                        messages: [
+                            { role: "user", content: prompt }
+                        ]
+                    };
+                    if (isDashScope) {
+                        body.enable_thinking = !!config.enable_thinking;
+                        body.thinking_budget = config.thinking_budget;
+                    }
                     res = await fetch(url, {
                         method: "POST",
                         headers,
-                        body: JSON.stringify({
-                            "model": config.model,
-                            "messages": [
-                                { "role": 'user', "content": prompt }
-                            ]
-                        }),
-                        "reasoning": {
-                            "enabled": true
-                        } 
+                        body: JSON.stringify(body),
+                        signal: controller.signal
                     });
                 } catch (e) {
                     const name = e && typeof e === 'object' && 'name' in e ? String(e.name) : '';
@@ -582,7 +592,7 @@
 
                 if (!res.ok) {
                     const errText = await res.text().catch(() => '');
-                    if (baseUrl.includes('openrouter.ai') && errText.includes('No endpoints found matching your data policy')) {
+                    if (isOpenRouter && errText.includes('No endpoints found matching your data policy')) {
                         throw new Error('OpenRouter 隐私策略限制了当前免费模型，请到 https://openrouter.ai/settings/privacy 调整数据策略，或改用非 :free 模型');
                     }
                     if (errText.includes("'max_tokens' or 'max_completion_tokens' is too large")) {
@@ -592,9 +602,7 @@
                 }
 
                 const data = await res.json();
-                console.log("data==>", JSON.stringify(data, null, 2));
                 const content = data?.choices?.[0]?.message?.content ?? '';
-                console.log("content==>"+content);
                 const words = parseWordsFromModelText(content);
                 return words;
             } finally {
