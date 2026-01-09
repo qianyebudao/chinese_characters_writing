@@ -391,6 +391,7 @@
             </div>
 
             <div class="char-info" id="charInfo">
+                <div id="pinyinText" class="text-sm font-semibold text-slate-600"></div>
                 <h2 id="charTitle"></h2>
                 <p>笔画数：<span id="charStrokes">0</span> 笔</p>
                 <div class="mt-4 border-t border-slate-200 pt-4">
@@ -438,6 +439,9 @@
     <script
         src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5.0/dist/hanzi-writer.min.js"
         onerror="this.onerror=null;this.src='https://unpkg.com/hanzi-writer@3.5.0/dist/hanzi-writer.min.js'"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.27.0/dist/index.js"
+        onerror="this.onerror=null;this.src='https://unpkg.com/pinyin-pro@3.27.0/dist/index.js'"></script>
     <script src="./ai_words_config.js"></script>
     <script>
         let writers = [];
@@ -467,6 +471,28 @@
             setTimeout(() => {
                 alertBox.style.display = 'none';
             }, 3000);
+        }
+
+        // 更新拼音与音调显示（依赖 pinyin-pro CDN）
+        function updatePinyinText(char) {
+            const el = document.getElementById('pinyinText');
+            if (!el) return;
+
+            if (!char || !validateChar(char)) {
+                el.textContent = '';
+                return;
+            }
+
+            if (!window.pinyinPro || typeof window.pinyinPro.pinyin !== 'function') {
+                el.textContent = '拼音加载中…';
+                return;
+            }
+
+            const symbol = window.pinyinPro.pinyin(char, { toneType: 'symbol' });
+            const num = window.pinyinPro.pinyin(char, { toneType: 'num' });
+            const toneMatch = String(num || '').match(/[1-5]/);
+            const tone = toneMatch ? toneMatch[0] : '';
+            el.textContent = tone ? `${symbol}（${tone}声）` : symbol;
         }
 
         function loadAiWordsConfig() {
@@ -690,6 +716,7 @@
 
                 // 显示信息
                 document.getElementById('charTitle').textContent = input;
+                updatePinyinText(input);
                 document.getElementById('charStrokes').textContent = strokeCount;
                 document.getElementById('charInfo').style.display = 'block';
 
@@ -969,6 +996,7 @@
             document.getElementById('charInfo').style.display = 'none';
             document.getElementById('strokesSection').style.display = 'none';
             document.getElementById('strokesGridContainer').innerHTML = '';
+            updatePinyinText('');
             setWordsStatus('');
             renderWords([]);
             setWordsLoading(false);
