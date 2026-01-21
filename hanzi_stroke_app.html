@@ -489,6 +489,7 @@
         let staticSvgs = [];
         const COLORS = {
             writing: '#000000',
+            currentWriting: '#cc0000', // 当前正在书写的笔画颜色（深红色）
             staticStroke: '#000000',
             backgroundStroke: '#000000',
             backgroundOpacity: 0.08
@@ -604,7 +605,7 @@
                 throw new Error('未配置 AI Key');
             }
 
-            const baseUrl = String(config.baseUrl || '').replace(/\/+$/, '');
+            const baseUrl = String(config.baseUrl || '').trim().replace(/\/+$/, '');
             const url = `${baseUrl}`;
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), 30000);
@@ -715,10 +716,14 @@
                 renderWords(finalWords);
             } catch (e) {
                 const msg = e instanceof Error ? e.message : String(e);
+                console.error('AI Request Error:', e);
+                
                 if (msg.includes('未配置 AI Key')) {
                     setWordsStatus('未配置 AI Key，请在 ai_words_config.js 中配置', 'warning');
-                } else if (msg.includes('请求超时')) {
-                    setWordsStatus(msg, 'warning');
+                } else if (msg.includes('请求超时') || msg.includes('aborted')) {
+                    setWordsStatus('请求超时（30秒），请重试或检查网络', 'warning');
+                } else if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+                    setWordsStatus('请求失败（跨域/网络错误）：阿里 DashScope 不支持浏览器直接调用，请尝试安装 Allow CORS 插件或更换支持 CORS 的服务商（如 OpenRouter）', 'error');
                 } else {
                     setWordsStatus(`AI 组词失败：${msg}`, 'error');
                 }
@@ -794,6 +799,9 @@
             if (type === 'light') {
                 options.strokeColor = COLORS.writing;
                 options.drawingColor = COLORS.writing;
+            } else if (type === 'highlight') {
+                options.strokeColor = COLORS.currentWriting;
+                options.drawingColor = COLORS.currentWriting;
             } else {
                 options.strokeColor = COLORS.writing;
                 options.drawingColor = COLORS.writing;
@@ -804,7 +812,7 @@
             return writer;
         }
 
-        function renderStaticStrokes(svgEl, uptoInclusive) {
+        function renderStaticStrokes(svgEl, uptoInclusive, highlightIndex = -1) {
             if (!svgEl) return;
             
             svgEl.innerHTML = '';
@@ -836,7 +844,11 @@
                 for (let i = 0; i <= maxIndex; i++) {
                     const path = document.createElementNS(svgNS, 'path');
                     path.setAttributeNS(null, 'd', currentCharData.strokes[i]);
-                    path.style.fill = COLORS.staticStroke;
+                    if (i === highlightIndex) {
+                        path.style.fill = COLORS.currentWriting;
+                    } else {
+                        path.style.fill = COLORS.staticStroke;
+                    }
                     path.style.opacity = '1';
                     path.style.stroke = 'none';
                     group.appendChild(path);
@@ -850,11 +862,11 @@
                 if (!svg) continue;
                 
                 if (i < currentStrokeIndex) {
-                    renderStaticStrokes(svg, i);
+                    renderStaticStrokes(svg, i, i);
                 } else if (i === currentStrokeIndex) {
-                    renderStaticStrokes(svg, i - 1);
+                    renderStaticStrokes(svg, i - 1, -1);
                 } else {
-                    renderStaticStrokes(svg, -1);
+                    renderStaticStrokes(svg, -1, -1);
                 }
                 
                 const writer = writers[i];
@@ -993,7 +1005,7 @@
             // 按照笔画顺序：每次只书写一笔，不一次描完整字
             const strokeIndex = currentStrokeIndex;
             renderStaticStrokes(staticSvgs[strokeIndex], strokeIndex - 1);
-            const writer = initWriter(strokeIndex, 'dark');
+            const writer = initWriter(strokeIndex, 'highlight');
             if (!writer) {
                 isPlaying = false;
                 return;
@@ -1003,7 +1015,7 @@
                 if (typeof writer.hideCharacter === 'function') {
                     writer.hideCharacter();
                 }
-                renderStaticStrokes(staticSvgs[strokeIndex], strokeIndex);
+                renderStaticStrokes(staticSvgs[strokeIndex], strokeIndex, strokeIndex);
                 currentStrokeIndex++;
                 document.getElementById('currentStroke').textContent = currentStrokeIndex;
                 
